@@ -1,0 +1,363 @@
+---
+title: "Эмпирическая часть"
+author: "Григораш Екатерина"
+date: '2022-04-22'
+output:
+  html_document:
+    code_folding: "hide"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, error = F, warning = F)
+```
+
+```{r}
+library(ggplot2)
+library("readxl") # чтобы рабботал read_xlsx
+library(dplyr)
+library(stargazer) # Для красивых табличек
+library(sjPlot) # для plot_model
+library(forcats)
+library(gridExtra)
+library(tidyr)
+library(MASS)
+library("PerformanceAnalytics")
+```
+
+```{r}
+df.all <-  read_xlsx ("viborka2.xlsx")
+df <- df.all[df.all$Democracy>=0.5,]
+
+df$QuotaLeg <- as.factor(df$QuotaLeg)
+df$QuotaVol <- as.factor(df$QuotaVol)
+df$ElectSystemNum <- as.factor(df$ElectSystemNum)
+df$Parliament <- as.numeric(df$Parliament)
+```
+
+### Дискриптивный обзор
+
+Выборка 31 страна (индекс V-DEM >=0.5)
+
+```{r}
+ggplot(df,aes(fct_reorder(countryRus,Democracy),Democracy)) + 
+  geom_histogram(stat="identity",alpha=0.8,fill="#eacc97") +
+  coord_flip() +
+  theme_minimal() +
+  xlab("") +
+  ylab("Уровень демократии")
+```
+
+Распределение зависимой переменной
+
+```{r}
+ggplot(df,aes(Parliament)) + 
+  geom_histogram(alpha=0.8, fill="#eacc97") +
+  theme_minimal() +
+  xlab("Процент женщин в парламенте") +
+  ylab("Количество стран")
+
+ggplot(df,aes(Parliament)) + 
+  geom_boxplot() +
+  theme_minimal() +
+  xlab("Процент женщин в парламенте") +
+  ylab("") +
+  coord_flip() 
+```
+
+### Пропущенные значения
+
+1) Смотрим на наличие выбросов
+2) Если они есть, то вместо NA ставим **медианное** значение. Если нет, то **среднее**.
+
+GendFamily32
+```{r}
+mean(df$GendFamily32,na.rm = TRUE) # 57
+median(df$GendFamily32,na.rm = TRUE) # 58
+df$GendFamily32[is.na(df$GendFamily32)] <- mean(df$GendFamily32, na.rm = TRUE)
+df$GendFamily32<- round(df$GendFamily32,1)
+```
+
+GendFamily35
+```{r}
+ggplot(df,aes(GendFamily35)) + geom_boxplot()
+mean(df$GendFamily35,na.rm = TRUE) # 27
+median(df$GendFamily35,na.rm = TRUE) # 27
+df$GendFamily35[is.na(df$GendFamily35)] <- median(df$GendFamily35, na.rm = TRUE)
+df$GendFamily35<- round(df$GendFamily35,1)
+```
+
+AllExpend
+```{r}
+ggplot(df,aes(AllExpend)) + geom_boxplot()
+mean(df$AllExpend,na.rm = TRUE) # 0.96
+median(df$AllExpend,na.rm = TRUE) # 0.75
+# Mean
+df$AllExpendMean <- df$AllExpend
+df$AllExpendMean[is.na(df$AllExpendMean)] <- mean(df$AllExpendMean, na.rm = TRUE)
+df$AllExpendMean<- round(df$AllExpendMean,1)
+# Median
+df$AllExpendMedian <- df$AllExpend
+df$AllExpendMedian[is.na(df$AllExpendMedian)] <- median(df$AllExpendMedian, na.rm = TRUE)
+df$AllExpendMedian<- round(df$AllExpendMedian,1)
+```
+
+MomLeave
+```{r}
+ggplot(df,aes(MomLeave)) + geom_boxplot()
+mean(df$MomLeave,na.rm = TRUE) # 53,8
+median(df$MomLeave,na.rm = TRUE) # 50
+df$MomLeave[is.na(df$MomLeave)] <- mean(df$MomLeave, na.rm = TRUE)
+df$MomLeave<- round(df$MomLeave,1)
+# Mean
+df$MomLeaveMean <- df$MomLeave
+df$MomLeaveMean[is.na(df$MomLeaveMean)] <- mean(df$MomLeaveMean, na.rm = TRUE)
+df$MomLeaveMean<- round(df$MomLeaveMean,1)
+# Median
+df$MomLeaveMedian <- df$MomLeave
+df$MomLeaveMedian[is.na(df$MomLeaveMedian)] <- median(df$MomLeaveMedian, na.rm = TRUE)
+df$MomLeaveMedian<- round(df$MomLeaveMedian,1)
+```
+
+DadLeave
+```{r}
+ggplot(df,aes(DadLeave)) + geom_boxplot()
+mean(df$DadLeave,na.rm = TRUE) # 8,4
+median(df$DadLeave,na.rm = TRUE) # 2
+# Mean
+df$DadLeaveMean <- df$DadLeave
+df$DadLeaveMean[is.na(df$DadLeaveMean)] <- mean(df$DadLeaveMean, na.rm = TRUE)
+df$DadLeaveMean<- round(df$DadLeaveMean,1)
+# Median
+df$DadLeaveMedian <- df$DadLeave
+df$DadLeaveMedian[is.na(df$DadLeaveMedian)] <- median(df$DadLeaveMedian, na.rm = TRUE)
+df$DadLeaveMedian<- round(df$DadLeaveMedian,1)
+```
+
+FamUnpaidHour
+```{r}
+mean(df$FamUnpaidHour,na.rm = TRUE) # 4,2
+median(df$FamUnpaidHour,na.rm = TRUE) # 4,3
+df$FamUnpaidHour[is.na(df$FamUnpaidHour)] <- mean(df$FamUnpaidHour, na.rm = TRUE)
+df$FamUnpaidHour<- round(df$FamUnpaidHour,1)
+```
+
+MalUnpaidHour
+```{r}
+ggplot(df,aes(MalUnpaidHour)) + geom_boxplot()
+mean(df$MalUnpaidHour,na.rm = TRUE) # 2,07
+median(df$MalUnpaidHour,na.rm = TRUE) # 2,28
+# Mean
+df$MalUnpaidHourMean <- df$MalUnpaidHour
+df$MalUnpaidHourMean[is.na(df$MalUnpaidHourMean)] <- mean(df$MalUnpaidHourMean, na.rm = TRUE)
+df$MalUnpaidHourMean<- round(df$MalUnpaidHourMean,1)
+# Median
+df$MalUnpaidHourMedian <- df$MalUnpaidHour
+df$MalUnpaidHourMedian[is.na(df$MalUnpaidHourMedian)] <- median(df$MalUnpaidHourMedian, na.rm = TRUE)
+df$MalUnpaidHourMedian<- round(df$MalUnpaidHourMedian,1)
+```
+
+### Общая модель
+
+Для начала, чтобы избежать в будущем проблемы с коллениарностью, посмотрим на кореляцию между всеми независимыми переменными.
+
+```{r}
+df.cor <- df[c("GendPolicy","GendFamily28",
+               "MalUnpaidHourMedian", "FamUnpaidHour",
+               "MomLeaveMedian","DadLeaveMedian","AllExpendMedian",
+               "ElectSystemNum","QuotaVol","QuotaLeg")]
+
+df.cor$ElectSystemNum <- as.numeric(df.cor$ElectSystemNum)
+df.cor$QuotaVol <- as.numeric(df.cor$QuotaVol)
+df.cor$QuotaLeg <- as.numeric(df.cor$QuotaLeg)
+
+chart.Correlation(df.cor, histogram=TRUE, pch=19)
+```
+
+Наблюдается сильная корреляция между:
+
+1) GendFamily28 и GendPolicy (0.64)
+2) GendFamily28 И GendFamily35 (0.66)
+3) QuotaLeg и GendFamily35 (0.53)
+4) QuotaLeg и GendFamily28 (0.62)
+
+GendFamily28 (5(3)) - убираем
+
+GendFamily35 (5(2))
+
+GendPolicy (7(1))
+
+QuotaLeg (5(2))
+
+```{r}
+df.cor <- df[c("GendPolicy",
+               "MalUnpaidHourMedian","FamUnpaidHour",
+               "MomLeaveMedian","DadLeaveMedian","AllExpendMedian",
+               "ElectSystemNum","QuotaVol","QuotaLeg")]
+
+df.cor$ElectSystemNum <- as.numeric(df.cor$ElectSystemNum)
+df.cor$QuotaVol <- as.numeric(df.cor$QuotaVol)
+df.cor$QuotaLeg <- as.numeric(df.cor$QuotaLeg)
+
+chart.Correlation(df.cor, histogram=TRUE, pch=19)
+```
+
+### Регрессия
+
+Линейная регрессия с переменными
+
+1) Parliament
+2) GendPolicy
+3) MalUnpaidHourMedian
+4) FamUnpaidHour
+5) MomLeaveMedian
+6) DadLeaveMedian
+7) AllExpendMedian
+ 
+И контрольными переменными
+
+```{r}
+# Модель без GendFamily32
+mod.1 <- lm(Parliament~
+             GendPolicy +
+             MalUnpaidHourMedian + FamUnpaidHour +
+             MomLeaveMedian + DadLeaveMedian + AllExpendMedian +
+             ElectSystemNum + QuotaVol + QuotaLeg, df)
+
+mod.2 <- lm(Parliament~
+             GendPolicy +
+             MalUnpaidHourMedian + FamUnpaidHour +
+             MomLeaveMedian + DadLeaveMedian + log(AllExpendMedian) +
+             ElectSystemNum + QuotaVol + QuotaLeg, df)
+
+tab_model(mod.1)
+tab_model(mod.2)
+```
+
+### Интерпретация
+
+1) Один процент солгласных с утверждением, что мужчины лучшие политические лидеры, нежели женщины, приводит к уменьшению процента женщин в парламенте на 0.28 пункта.
+2) Один дополнительный процент гос. росходов на на детей и дошкольное образование от ВВП увеличивает процент женщин в парламенте почти на 9 пунктов.
+3) Наличие квот ведет к увеличению процента женщин в парламенте почти на 7 пунктов.
+
+### Проверка допущений
+
+```{r}
+# Рисунок 
+ggplot(df,aes(GendPolicy,Parliament)) + 
+  geom_point(alpha=0.8) +
+  theme_minimal() +
+  xlab("Гендерные стереотипы") +
+  ylab("Процент женщин в парламенте") +
+  geom_smooth(method = "lm",alpha=0.2, color="#eacc97")
+
+# Рисунок 
+data=df %>% filter(GendPolicy<30 & Parliament<25)
+
+
+ggplot(df,aes(AllExpendMedian,Parliament)) + 
+  geom_point(alpha=0.8) +
+  theme_minimal() +
+  xlab("Государственные расходы") +
+  ylab("Процент женщин в парламенте") +
+  geom_smooth(method = "lm",alpha=0.2, color="#eacc97")
+
+# Рисунок 
+df <- df %>% 
+  mutate(ParliamentF = case_when(
+    Parliament < 20 ~ "Меньше 20",
+    Parliament < 30 & Parliament >=20 ~ "20-30",
+    Parliament < 40 & Parliament >=30 ~ "30-40",
+    Parliament >=40 ~ "Больше 40"
+    ))
+df$ParliamentF <- as.factor(df$ParliamentF)
+df$ParliamentF <- factor(df$ParliamentF, levels = c("Меньше 20", "20-30", "30-40","Больше 40"))
+
+ggplot(df,aes(AllExpendMedian,GendPolicy,color=ParliamentF)) + 
+  geom_point(alpha=0.5,aes(size=ParliamentF)) +
+  geom_smooth(method = "lm",se = FALSE, alpha=0.2) +
+  scale_color_manual(
+  values = c("#a36c22", "#eacc97", "#93b0d0","#a793d0"),
+  name = " Процент\
+  женщин 
+  в парламенте")+
+  theme_minimal() +
+  xlab("Государственные расходы") +
+  ylab("Гендерные стереотипы") +
+  guides(size = FALSE) 
+
+# Рисунок 
+table(df$ParliamentF,df$QuotaLeg)
+
+ggplot(df,aes(QuotaLeg,fill=ParliamentF)) + 
+  geom_bar(position = "stack",alpha=0.8) +
+  geom_text(aes(label = after_stat(..count..)), stat = "count", vjust = 1.3, position = "stack",size = 4) +
+  scale_fill_manual(
+  values = c("#a36c22", "#eacc97", "#93b0d0", "#a793d0"),
+  name = " Процент
+  женщин 
+  в парламенте")+
+  theme_minimal() +
+  xlab("Законодательные квоты")+
+  ylab("Количество стран")
+
+#Рисунок
+
+ggplot(df,aes(QuotaVol,fill=ParliamentF)) + 
+  geom_bar(position = "stack",alpha=0.8) +
+  geom_text(aes(label = after_stat(..count..)), stat = "count", vjust = 1.3, position = "stack",size = 4) +
+  scale_fill_manual(
+  values = c("#a36c22", "#eacc97", "#93b0d0", "#a793d0"),
+  name = " Процент
+  женщин 
+  в парламенте")+
+  theme_minimal() +
+  xlab("Добровольные квоты")+
+  ylab("Количество стран")
+
+
+# Рисунок 
+data=df %>% filter( GendPolicy<35 & AllExpendMedian<=1)
+
+ggplot(df,aes(AllExpendMedian,GendPolicy,size=QuotaLeg,color=ParliamentF)) + 
+  geom_point(alpha=0.5) +
+  xlab("Государственные расходы") +
+  ylab("Гендерные стереотипы") +
+  scale_color_manual(
+  values = c("#a36c22", "#eacc97", "#93b0d0", "#a793d0"),
+  name = " Процент
+  женщин 
+  в парламенте")+
+  scale_size_manual(
+  values = c(4, 8),
+  name = "Законод.
+  квоты",
+  breaks = c("0", "1"),
+  labels = c("Нет", "Есть"))+
+  theme_minimal()
+
+```
+
+Вроде все ок
+
+```{r}
+gvlma::gvlma(mod.1, df)
+plot(mod.1)
+sqrt(car::vif(mod.1)) > 2
+```
+
+### Автоматический подбор лучшей модели
+
+```{r}
+step <- stepAIC(mod.1,direction = "backward")
+```
+
+### Оценка лучшей модели
+
+В целом результаты схожи
+
+```{r}
+mod.2 <- lm(Parliament ~ GendPolicy + FamUnpaidHour + DadLeaveMedian + AllExpendMedian + 
+    QuotaVol + QuotaLeg,df)
+
+tab_model(mod.2)
+```

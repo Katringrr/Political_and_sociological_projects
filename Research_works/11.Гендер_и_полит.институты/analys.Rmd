@@ -1,0 +1,52 @@
+---
+title: "Untitled"
+author: "Grigorash Ekaterina"
+date: "23 12 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("readxl") # чтобы рабботал read_xlsx
+library(dplyr)
+library(stargazer) # Для красивых табличек
+library(sjPlot) # для plot_model
+library(ggplot2)
+library("webshot")
+```
+```{r}
+data <-  read_xlsx ("data.xlsx")
+data[is.na(data)] <- "No"
+
+data$Electoral_system <- as.factor(data$Electoral_system)
+data$Reserved <- as.factor(data$Reserved)
+data$Rating <- as.factor(data$Rating)
+data$DV <- as.factor(data$DV)
+data$DE <- as.factor(data$DE)
+data$SH <- as.factor(data$SH)
+```
+
+```{r}
+model <- lm(GGGI_score_2021~DV+DE+SH,data) # влияние на общий балл рейтинга
+tab_model(model,file = "plot2.html")
+#webshot("plot.html", "plot.png")
+```
+
+```{r}
+leg_predict <- with(data, data.frame(GGGI_score_2021 = GGGI_score_2021, DV = DV,DE=DE,SH=SH,Rating=Rating))
+leg_predict$predict <- predict(model, newdata = leg_predict, type = "response")
+```
+
+```{r}
+ggplot(leg_predict, aes(Rating, predict)) + geom_bar(stat = "identity")
+```
+
+```{r}
+data$GGGI_score_2021 <- as.numeric(data$GGGI_score_2021)
+summary(data$GGGI_score_2021)
+```
+
+
