@@ -1,0 +1,133 @@
+---
+title: "Линейная регрессия"
+output: html_document
+author: Grigorash Ekaterina
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(sjPlot)
+library(dplyr)
+library(broom)
+library(gridExtra)
+library(pastecs)
+library(car)
+library(psych)
+```
+
+```{r, echo=FALSE, message=FALSE}
+data = haven::read_sav("Russia PEI Responses expert-level.sav")
+attach(data)
+```
+### Оценка модели с тремя предикторами
+```{r}
+linear_model <- lm(PEIIndexi~television+supported+police)
+summary(linear_model)
+```
+Модель описывает 56% от выборки, переменные статистически значимы - кроме одной (рассмотрим ниже подробнее).
+
+##### **Television**
+
+Наиболее высокий уровень доверия к ТВ приводит в среднем к наиболее высоким оценкам экспертов (изменение на одну единицу первого увеличивает оценку на 3 пункта).
+
+##### **Supported**
+
+Рассмотрим ее значения:
+
+1. winner
+2. loser
+3. no party 
+4. did not vote
+5. decline to answer
+6. independent
+7. no answer
+
+Так как это переменная категориальная, то я бы лучше перекодировала ее в новую - чтобы определить влияет ли голосование на оценку - например, оставив 1-winner, 2-loser. Или даже объединив 2,3 и 6 в одну. Поэтому выводы будут не точны, надо перекодировать - не уверена, что смогу это сделать правильно в данной программе, но дальше продемонстрирую попытку.
+
+##### **Police**
+
+Наиболее высокий уровень доверия к полиции приводит в среднем к наиболее высоким оценкам экспертов (изменение на одну единицу первого увеличивает оценку на 2 пункта).
+
+#### Попытка перекодировать переменную
+```{r}
+supported_f <- as.factor(supported)
+linear_model_n <- lm(PEIIndexi~television+supported_f+police)
+summary(linear_model_n)
+```
+Во-первых, хочется отметить, что существуют ответы лишь 1 - winner, 2 - loser, 5 - decline to answer, 7 - no answer.
+
+В таблице мы видим, что значение 2 (loser) является значимым, и при этом отрицательно значимым (по отношению к ответу 1). А это значит, что, если эксперт голосовал за партию победителя, то его оценки качества проведения выборов будут выше. 
+
+Все отстальные значения в целом не изменились (немного поднялся процент интерпретации выборки - с 56% до 59%).
+
+### Диагностика
+#### Линейность
+```{r}
+par(mfrow = c(2, 2))
+model.diag.metrics <- augment(linear_model)
+head(model.diag.metrics)
+plot(linear_model)
+```
+
+На графике "Normal Q-Q" мы наблюдаем почти идеальную линию, что говорит о том, что наше наблюдаемое распределение совпадает с ожидаемым. Это хорошо. Следовательно, наше распредление нормальное.
+
+А теперь все тоже самое, но в цифрах.
+
+```{r}
+stat.desc(linear_model_n, basic = F, norm = T)
+```
+Как мы можем отметить, наши переменные распределены нормально - без резких сдвигов.
+```{r}
+shapiro.test(television)
+shapiro.test(supported)
+shapiro.test(police)
+```
+Тест показывает, что у нас нормальное распределение переменных.
+
+#### Гомогенность
+```{r, warning=FALSE}
+leveneTest (PEIIndexi, television, center = median) 
+leveneTest (PEIIndexi, supported_f, center = median) 
+leveneTest (PEIIndexi, police, center = median) 
+```
+Значения гомогенны.
+
+#### Колинеарность
+```{r}
+vif(linear_model_n)
+sqrt(vif(linear_model_n)) > 2
+```
+С колинеарностью все впорядке.
+
+### Небольшое обобщение
+
+Еще раз проверим основные моменты
+```{r}
+plot(linear_model_n, 1)
+```
+
+Связь линейная.
+```{r}
+plot(linear_model_n, 3)
+```
+
+Остатки распределены равномерно.
+```{r}
+plot(linear_model_n, 5)
+```
+
+Выбросы не влияют на нашу модель.
+
+### Выводы
+
+1. Связь между переменными линейная; 
+2. Значения распределены нормально и они гомогенны;
+3. Выбросов, влияющих на наши выводы, не наблюдаются;
+4. Мультиколлинеарности нет.
+
+Модель хорошая.
